@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -88,9 +89,9 @@ pub fn run(args: &Cli) -> Result<()> {
     if !args.exact_only && n_unique > 1 {
         let hasher = MinHasher::new(args.num_perm);
 
-        // Compute signatures for each unique doc
+        // Compute signatures in parallel (embarrassingly parallel — no shared state)
         let signatures: Vec<_> = unique_indices
-            .iter()
+            .par_iter()
             .map(|&i| {
                 let shingles = shingle::shingles(&texts[i], args.shingle_size);
                 hasher.signature(&shingles)

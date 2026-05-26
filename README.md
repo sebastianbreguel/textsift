@@ -6,14 +6,14 @@ Exact dedup (hash-based) + near-duplicate detection (MinHash LSH) on JSONL corpo
 
 ## Benchmarks
 
-Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates). Mac M4 Pro, single-threaded.
+Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates). Mac M4 Pro.
 
 | Dataset | textsift | datasketch (Python) | Speedup |
 |---------|----------|--------------------:|--------:|
-| 100K docs | **1.5s** | 38.6s | **26x** |
-| 1M docs | **15.7s** | 405s | **26x** |
+| 100K docs | **0.36s** | 38.6s | **107x** |
+| 1M docs | **4.7s** | 405s | **86x** |
 
-Both tools detect the same duplicates at the same threshold. textsift is ~26x faster thanks to Rust + ahash.
+Both tools detect the same duplicates at the same threshold (verified: 0% difference on 100K docs). textsift is ~86-107x faster thanks to Rust + ahash + rayon multi-threading.
 
 ## Install
 
