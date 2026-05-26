@@ -1,7 +1,6 @@
 use anyhow::Result;
 use rayon::prelude::*;
 use serde_json::Value;
-use std::collections::HashMap;
 
 use crate::cli::Cli;
 use crate::cluster::UnionFind;
