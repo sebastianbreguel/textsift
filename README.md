@@ -4,6 +4,17 @@ Fast text deduplication CLI for ML dataset curation. Written in Rust.
 
 Exact dedup (hash-based) + near-duplicate detection (MinHash LSH) on JSONL corpora. Plug-and-play — one command, no configuration required.
 
+## Benchmarks
+
+Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates). Mac M4 Pro, single-threaded.
+
+| Dataset | textsift | datasketch (Python) | Speedup |
+|---------|----------|--------------------:|--------:|
+| 100K docs | **1.5s** | 38.6s | **26x** |
+| 1M docs | **15.7s** | 405s | **26x** |
+
+Both tools detect the same duplicates at the same threshold. textsift is ~26x faster thanks to Rust + ahash.
+
 ## Install
 
 ```bash
