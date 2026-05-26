@@ -1,31 +1,43 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 
 use ahash::AHasher;
 
-type AHashSet<T> = HashSet<T, BuildHasherDefault<AHasher>>;
+type AHashMap<K, V> = HashMap<K, V, BuildHasherDefault<AHasher>>;
 
-/// Hash-based exact duplicate detector.
-///
-/// Hashes each text with ahash and stores the u64 digest in a HashSet.
-/// Two texts are "exact duplicates" iff they produce the same hash.
 pub struct ExactDedup {
-    seen: AHashSet<u64>,
+    groups: AHashMap<u64, Vec<usize>>,
 }
 
 impl ExactDedup {
     pub fn new() -> Self {
         Self {
-            seen: AHashSet::default(),
+            groups: AHashMap::default(),
         }
     }
 
+    /// Process doc at index `i`. Returns `true` if it's a duplicate of a prior doc.
+    pub fn process(&mut self, i: usize, text: &str) -> bool {
+        let hash = Self::hash_text(text);
+        let entry = self.groups.entry(hash).or_default();
+        entry.push(i);
+        entry.len() > 1
+    }
+
     /// Returns `true` if `text` was already seen (duplicate).
-    /// Inserts the hash on first encounter.
     pub fn is_duplicate(&mut self, text: &str) -> bool {
         let hash = Self::hash_text(text);
-        // insert returns false if the value was already present
-        !self.seen.insert(hash)
+        let entry = self.groups.entry(hash).or_default();
+        let is_dup = !entry.is_empty();
+        if !is_dup {
+            entry.push(0);
+        }
+        is_dup
+    }
+
+    /// Consume and return the exact-match groups (hash → list of doc indices).
+    pub fn into_groups(self) -> AHashMap<u64, Vec<usize>> {
+        self.groups
     }
 
     fn hash_text(text: &str) -> u64 {

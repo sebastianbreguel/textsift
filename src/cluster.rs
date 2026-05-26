@@ -53,10 +53,6 @@ impl UnionFind {
             let root = self.find(i);
             groups.entry(root).or_default().push(i);
         }
-        // Members are already in order because we iterate 0..n, but sort to be safe.
-        for members in groups.values_mut() {
-            members.sort_unstable();
-        }
         groups
     }
 }

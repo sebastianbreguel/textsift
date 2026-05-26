@@ -36,20 +36,22 @@ impl MinHasher {
     /// For each permutation slot, hashes every shingle and keeps the minimum.
     /// Returns a `Vec<u64>` of length `num_perm`.
     pub fn signature(&self, shingles: &[String]) -> Signature {
-        self.hashers
-            .iter()
-            .map(|state| {
-                shingles
-                    .iter()
-                    .map(|s| {
-                        let mut h = state.build_hasher();
-                        h.write(s.as_bytes());
-                        h.finish()
-                    })
-                    .min()
-                    .unwrap_or(u64::MAX)
-            })
-            .collect()
+        let num_perm = self.hashers.len();
+        let mut mins = vec![u64::MAX; num_perm];
+
+        for s in shingles {
+            let bytes = s.as_bytes();
+            for (slot, state) in self.hashers.iter().enumerate() {
+                let mut h = state.build_hasher();
+                h.write(bytes);
+                let val = h.finish();
+                if val < mins[slot] {
+                    mins[slot] = val;
+                }
+            }
+        }
+
+        mins
     }
 
     /// Estimate Jaccard similarity between two signatures.

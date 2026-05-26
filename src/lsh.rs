@@ -73,7 +73,17 @@ impl LshIndex {
     /// For each bucket with >1 document, emits all unique (i, j) pairs where i < j.
     pub fn candidate_pairs(&self) -> Vec<(usize, usize)> {
         let mut seen = HashSet::default();
+        self.for_each_candidate_pair(|a, b| {
+            seen.insert((a, b));
+        });
+        seen.into_iter().collect()
+    }
 
+    /// Iterate candidate pairs via callback — zero allocation.
+    ///
+    /// Union-Find is idempotent, so duplicate pairs across bands are harmless.
+    /// This avoids materializing the full pair set in memory.
+    pub fn for_each_candidate_pair(&self, mut f: impl FnMut(usize, usize)) {
         for table in &self.tables {
             for docs in table.values() {
                 if docs.len() < 2 {
@@ -81,18 +91,16 @@ impl LshIndex {
                 }
                 for i in 0..docs.len() {
                     for j in (i + 1)..docs.len() {
-                        let pair = if docs[i] < docs[j] {
+                        let (a, b) = if docs[i] < docs[j] {
                             (docs[i], docs[j])
                         } else {
                             (docs[j], docs[i])
                         };
-                        seen.insert(pair);
+                        f(a, b);
                     }
                 }
             }
         }
-
-        seen.into_iter().collect()
     }
 
     /// Hash a chunk of u64 values into a single bucket key.

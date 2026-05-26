@@ -58,13 +58,13 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
     let mut exact_dup_count = 0usize;
 
     for (i, text) in texts.iter().enumerate() {
-        if dedup.is_duplicate(text) {
+        if dedup.process(i, text) {
             is_exact_dup[i] = true;
             exact_dup_count += 1;
         }
     }
 
-    let exact_groups = build_exact_groups(texts);
+    let exact_groups = dedup.into_groups();
 
     let unique_indices: Vec<usize> = (0..total).filter(|&i| !is_exact_dup[i]).collect();
     let n_unique = unique_indices.len();
@@ -90,14 +90,12 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
             lsh_index.insert(pos, sig);
         }
 
-        let candidate_pairs = lsh_index.candidate_pairs();
-
-        for (a, b) in &candidate_pairs {
-            let sim = MinHasher::jaccard(&signatures[*a], &signatures[*b]);
+        lsh_index.for_each_candidate_pair(|a, b| {
+            let sim = MinHasher::jaccard(&signatures[a], &signatures[b]);
             if sim >= config.threshold {
-                uf.union(*a, *b);
+                uf.union(a, b);
             }
-        }
+        });
     }
 
     let uf_clusters = uf.clusters();
@@ -199,16 +197,3 @@ pub fn run(args: &Cli) -> Result<()> {
     Ok(())
 }
 
-fn build_exact_groups(texts: &[String]) -> HashMap<u64, Vec<usize>> {
-    use std::hash::{Hash, Hasher};
-    let mut groups: HashMap<u64, Vec<usize>> = HashMap::new();
-
-    for (i, text) in texts.iter().enumerate() {
-        let mut hasher = ahash::AHasher::default();
-        text.hash(&mut hasher);
-        let h = hasher.finish();
-        groups.entry(h).or_default().push(i);
-    }
-
-    groups
-}
