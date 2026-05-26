@@ -73,7 +73,7 @@ fn all_identical_docs() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("exact duplicates: 4"));
-    assert!(stderr.contains("unique docs: 1"));
+    assert!(stderr.contains("unique docs emitted: 1"));
 }
 
 /// Zero duplicates → nothing flagged, all pass through
@@ -94,7 +94,7 @@ fn zero_duplicates() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("exact duplicates: 0"));
-    assert!(stderr.contains("unique docs: 4"));
+    assert!(stderr.contains("unique docs emitted: 4"));
 }
 
 /// ExactDedup::new() starts clean — calling the binary twice doesn't share state
