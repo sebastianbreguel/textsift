@@ -1,8 +1,13 @@
 # textsift
 
+[![CI](https://github.com/sebastianbreguel/textsift/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianbreguel/textsift/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://pypi.org/project/textsift/)
+
 **96x faster than datasketch. 2x faster than rensa. Same results.**
 
-Fast text deduplication for ML datasets. Exact hash + MinHash LSH in 789 lines of Rust. One command or one function call.
+Fast text deduplication for ML datasets. Exact hash + MinHash LSH in ~800 lines of Rust. One command or one function call.
 
 ```bash
 # CLI
@@ -196,4 +201,4 @@ uv run --with datasketch scripts/correctness_test.py
 
 ## License
 
-MIT
+[MIT](LICENSE)
