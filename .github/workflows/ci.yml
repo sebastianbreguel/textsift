@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        run: cargo check --all-features
+
+      - name: Clippy
+        run: cargo clippy --all-features -- -D warnings
+
+      - name: Tests
+        run: cargo test
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Smoke test (CLI)
+        run: |
+          echo '{"text":"hello world","id":1}' > /tmp/test.jsonl
+          echo '{"text":"hello world","id":2}' >> /tmp/test.jsonl
+          echo '{"text":"different doc","id":3}' >> /tmp/test.jsonl
+          ./target/release/textsift /tmp/test.jsonl --field text --exact-only --stats 2>&1
+          CLEAN=$(./target/release/textsift /tmp/test.jsonl --field text --exact-only | wc -l)
+          [ "$CLEAN" -eq 2 ] || (echo "Expected 2 clean docs, got $CLEAN" && exit 1)
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
