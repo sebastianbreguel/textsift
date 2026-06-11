@@ -323,3 +323,34 @@ fn clusters_output_includes_similarity() {
     assert_eq!(docs[1]["similarity"], 1.0, "exact dup → 1.0");
     assert!(docs.iter().all(|d| d["similarity"].is_number()));
 }
+
+#[test]
+fn gzipped_input_works_transparently() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain = dir.path().join("corpus.jsonl");
+    std::fs::write(
+        &plain,
+        "{\"text\":\"gz doc one\"}\n{\"text\":\"gz doc one\"}\n{\"text\":\"gz doc two\"}\n",
+    )
+    .unwrap();
+    let status = std::process::Command::new("gzip")
+        .arg(plain.to_str().unwrap())
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let gz = dir.path().join("corpus.jsonl.gz");
+    let output = textsift()
+        .arg(&gz)
+        .args(["--field", "text"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim().lines().count(),
+        2,
+        "dedup ran on decompressed content"
+    );
+    assert!(stdout.contains("gz doc two"));
+}

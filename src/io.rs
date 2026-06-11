@@ -6,10 +6,24 @@ use std::path::Path;
 
 pub fn open_reader(path: &Path) -> Result<Box<dyn BufRead>> {
     if path.to_str() == Some("-") {
-        Ok(Box::new(BufReader::new(io::stdin())))
+        return Ok(Box::new(BufReader::new(io::stdin())));
+    }
+    let file = File::open(path).with_context(|| format!("cannot open '{}'", path.display()))?;
+    let mut reader = BufReader::new(file);
+
+    // Sniff the gzip magic bytes (1f 8b) so corpus.jsonl.gz just works,
+    // whatever the file is named. fill_buf peeks without consuming.
+    let is_gzip = reader
+        .fill_buf()
+        .map(|buf| buf.starts_with(&[0x1f, 0x8b]))
+        .unwrap_or(false);
+
+    if is_gzip {
+        Ok(Box::new(BufReader::new(flate2::bufread::GzDecoder::new(
+            reader,
+        ))))
     } else {
-        let file = File::open(path).with_context(|| format!("cannot open '{}'", path.display()))?;
-        Ok(Box::new(BufReader::new(file)))
+        Ok(Box::new(reader))
     }
 }
 
