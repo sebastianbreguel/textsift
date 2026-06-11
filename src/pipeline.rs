@@ -27,6 +27,27 @@ impl From<&Cli> for DedupConfig {
     }
 }
 
+impl DedupConfig {
+    /// Check parameter ranges. `deduplicate` panics on invalid configs
+    /// (`shingle_size == 0`, `num_perm == 0`), so every user-facing surface
+    /// must call this first.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.num_perm == 0 {
+            return Err("num_perm must be at least 1".to_string());
+        }
+        if self.shingle_size == 0 {
+            return Err("shingle_size must be at least 1".to_string());
+        }
+        if self.threshold.is_nan() || !(0.0..=1.0).contains(&self.threshold) {
+            return Err(format!(
+                "threshold must be between 0.0 and 1.0, got {}",
+                self.threshold
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub struct DedupResult {
     pub cluster_ids: Vec<usize>,
     pub is_representative: Vec<bool>,
@@ -147,6 +168,9 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
 
 /// CLI entry point: read JSONL → deduplicate → write output.
 pub fn run(args: &Cli) -> Result<()> {
+    let config = DedupConfig::from(args);
+    config.validate().map_err(|e| anyhow::anyhow!(e))?;
+
     let reader = crate::io::open_reader(&args.input)?;
     let mut writer = crate::io::open_writer(args.output.as_deref())?;
 
@@ -166,7 +190,6 @@ pub fn run(args: &Cli) -> Result<()> {
         }
     }
 
-    let config = DedupConfig::from(args);
     let result = deduplicate(&texts, &config);
 
     if args.clusters {

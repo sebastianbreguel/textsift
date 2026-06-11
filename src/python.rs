@@ -1,3 +1,4 @@
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use crate::pipeline::{deduplicate, DedupConfig, DedupResult as RustDedupResult};
@@ -54,19 +55,25 @@ impl From<RustDedupResult> for DedupResult {
 #[pyfunction]
 #[pyo3(signature = (texts, threshold=0.8, num_perm=128, shingle_size=5, exact_only=false))]
 fn dedup(
+    py: Python<'_>,
     texts: Vec<String>,
     threshold: f64,
     num_perm: usize,
     shingle_size: usize,
     exact_only: bool,
-) -> DedupResult {
+) -> PyResult<DedupResult> {
     let config = DedupConfig {
         threshold,
         num_perm,
         shingle_size,
         exact_only,
     };
-    deduplicate(&texts, &config).into()
+    config.validate().map_err(PyValueError::new_err)?;
+
+    // Release the GIL: dedup is pure Rust and can run for seconds on large
+    // corpora — other Python threads shouldn't be blocked meanwhile.
+    let result = py.allow_threads(|| deduplicate(&texts, &config));
+    Ok(result.into())
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {

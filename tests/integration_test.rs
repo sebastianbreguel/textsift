@@ -98,3 +98,36 @@ fn nested_json_preserved() {
     assert_eq!(v["nested"]["a"], 1);
     assert_eq!(v["nested"]["b"][1], 3);
 }
+
+#[test]
+fn rejects_zero_shingle_size() {
+    textsift()
+        .arg("-")
+        .args(["--field", "text", "--shingle-size", "0"])
+        .write_stdin(r#"{"text":"a b c"}"#)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("shingle_size must be at least 1"));
+}
+
+#[test]
+fn rejects_zero_num_perm() {
+    textsift()
+        .arg("-")
+        .args(["--field", "text", "--num-perm", "0"])
+        .write_stdin(r#"{"text":"a b c"}"#)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("num_perm must be at least 1"));
+}
+
+#[test]
+fn rejects_out_of_range_threshold() {
+    textsift()
+        .arg("-")
+        .args(["--field", "text", "--threshold", "1.5"])
+        .write_stdin(r#"{"text":"a b c"}"#)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("threshold must be between"));
+}

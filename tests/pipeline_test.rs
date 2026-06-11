@@ -126,7 +126,12 @@ fn exact_and_near_duplicates_merge_into_one_cluster() {
 
 #[test]
 fn deterministic_across_runs() {
-    let docs = vec![base_doc(), near_dup_doc(), base_doc(), "unrelated short doc".to_string()];
+    let docs = vec![
+        base_doc(),
+        near_dup_doc(),
+        base_doc(),
+        "unrelated short doc".to_string(),
+    ];
     let cfg = config(0.5, false);
     let a = deduplicate(&docs, &cfg);
     let b = deduplicate(&docs, &cfg);
