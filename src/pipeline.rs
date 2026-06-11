@@ -51,6 +51,9 @@ impl DedupConfig {
 pub struct DedupResult {
     pub cluster_ids: Vec<usize>,
     pub is_representative: Vec<bool>,
+    /// Estimated Jaccard similarity to the cluster representative.
+    /// 1.0 for representatives, singletons, and exact duplicates.
+    pub similarity: Vec<f64>,
     pub total: usize,
     pub exact_dupes: usize,
     pub near_dupes: usize,
@@ -71,6 +74,7 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
         return DedupResult {
             cluster_ids: vec![],
             is_representative: vec![],
+            similarity: vec![],
             total: 0,
             exact_dupes: 0,
             near_dupes: 0,
@@ -96,11 +100,14 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
 
     let mut uf = UnionFind::new(n_unique);
     let mut near_dup_count = 0usize;
+    // Kept after LSH so per-doc similarity to the representative can be
+    // reported; empty in exact-only mode.
+    let mut signatures: Vec<crate::minhash::Signature> = Vec::new();
 
     if !config.exact_only && n_unique > 1 {
         let hasher = MinHasher::new(config.num_perm);
 
-        let signatures: Vec<_> = unique_indices
+        signatures = unique_indices
             .par_iter()
             .map(|&i| {
                 let shingles = shingle::shingle_hashes(&texts[i], config.shingle_size);
@@ -127,6 +134,7 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
 
     let mut cluster_ids = vec![0usize; total];
     let mut is_representative = vec![false; total];
+    let mut similarity = vec![1.0f64; total];
     let mut next_cluster_id = 0usize;
 
     let mut uf_roots: Vec<usize> = uf_clusters.keys().copied().collect();
@@ -141,6 +149,10 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
             let orig_idx = unique_indices[pos];
             cluster_ids[orig_idx] = cid;
             is_representative[orig_idx] = j == 0;
+            if j > 0 && !signatures.is_empty() {
+                similarity[orig_idx] =
+                    MinHasher::jaccard(&signatures[members[0]], &signatures[pos]);
+            }
         }
 
         if members.len() > 1 {
@@ -164,6 +176,7 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
     DedupResult {
         cluster_ids,
         is_representative,
+        similarity,
         total,
         exact_dupes: exact_dup_count,
         near_dupes: near_dup_count,
@@ -248,17 +261,18 @@ pub fn run(args: &Cli) -> Result<()> {
     let mut next_cluster = result.unique_clusters;
 
     for (line, has_field) in &lines {
-        let (cid, rep) = if *has_field {
+        let (cid, rep, sim) = if *has_field {
             let v = (
                 result.cluster_ids[text_idx],
                 result.is_representative[text_idx],
+                result.similarity[text_idx],
             );
             text_idx += 1;
             v
         } else {
             let cid = next_cluster;
             next_cluster += 1;
-            (cid, true)
+            (cid, true, 1.0)
         };
 
         if args.clusters {
@@ -269,6 +283,11 @@ pub fn run(args: &Cli) -> Result<()> {
             if let Some(obj) = doc.as_object_mut() {
                 obj.insert("cluster_id".into(), Value::from(cid as u64));
                 obj.insert("is_representative".into(), Value::from(rep));
+                // Rounded for readable output; full precision via Python API.
+                obj.insert(
+                    "similarity".into(),
+                    Value::from((sim * 10000.0).round() / 10000.0),
+                );
             }
             crate::io::write_jsonl(&mut writer, &doc)?;
         } else if rep {

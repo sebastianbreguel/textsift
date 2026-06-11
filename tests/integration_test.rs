@@ -302,3 +302,24 @@ fn multi_field_near_dedup_clusters_similar_composites() {
         "near-dup composite collapsed, distinct one kept"
     );
 }
+
+#[test]
+fn clusters_output_includes_similarity() {
+    let input = "{\"text\":\"dup doc here\"}\n{\"text\":\"dup doc here\"}\n";
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "text", "--clusters"])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let docs: Vec<serde_json::Value> = stdout
+        .trim()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(docs[0]["similarity"], 1.0);
+    assert_eq!(docs[1]["similarity"], 1.0, "exact dup → 1.0");
+    assert!(docs.iter().all(|d| d["similarity"].is_number()));
+}

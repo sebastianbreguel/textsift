@@ -11,6 +11,10 @@ pub struct DedupResult {
     pub cluster_ids: Vec<usize>,
     #[pyo3(get)]
     pub is_representative: Vec<bool>,
+    /// Estimated Jaccard similarity to the cluster representative
+    /// (1.0 for representatives, singletons, and exact duplicates).
+    #[pyo3(get)]
+    pub similarity: Vec<f64>,
     #[pyo3(get)]
     pub total: usize,
     #[pyo3(get)]
@@ -45,6 +49,7 @@ impl From<RustDedupResult> for DedupResult {
         Self {
             cluster_ids: r.cluster_ids,
             is_representative: r.is_representative,
+            similarity: r.similarity,
             total: r.total,
             exact_dupes: r.exact_dupes,
             near_dupes: r.near_dupes,

@@ -178,3 +178,25 @@ fn docs_shorter_than_shingle_size() {
     assert_eq!(result.exact_dupes, 1);
     assert_ne!(result.cluster_ids[0], result.cluster_ids[2]);
 }
+
+#[test]
+fn similarity_scores_reported() {
+    // Near-dup member: similarity in [threshold, 1.0); rep and exact dup: 1.0.
+    let docs = vec![base_doc(), near_dup_doc(), base_doc()];
+    let result = deduplicate(&docs, &config(0.5, false));
+    assert_eq!(result.similarity.len(), 3);
+    assert_eq!(result.similarity[0], 1.0, "representative");
+    assert!(
+        result.similarity[1] >= 0.5 && result.similarity[1] < 1.0,
+        "near-dup similarity {} should be in [0.5, 1.0)",
+        result.similarity[1]
+    );
+    assert_eq!(result.similarity[2], 1.0, "exact duplicate");
+}
+
+#[test]
+fn similarity_all_ones_in_exact_only() {
+    let docs = vec![base_doc(), near_dup_doc(), base_doc()];
+    let result = deduplicate(&docs, &config(0.5, true));
+    assert!(result.similarity.iter().all(|&s| s == 1.0));
+}
