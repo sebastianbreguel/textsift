@@ -24,7 +24,7 @@ jobs:
         run: cargo clippy --all-features -- -D warnings
 
       - name: Tests
-        run: cargo test
+        run: cargo test --features python
 
       - name: Build release
         run: cargo build --release
@@ -37,6 +37,41 @@ jobs:
           ./target/release/textsift /tmp/test.jsonl --field text --exact-only --stats 2>&1
           CLEAN=$(./target/release/textsift /tmp/test.jsonl --field text --exact-only | wc -l)
           [ "$CLEAN" -eq 2 ] || (echo "Expected 2 clean docs, got $CLEAN" && exit 1)
+
+  python-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: |
+          pip install maturin
+          maturin build --release --out dist
+
+      - name: Install and smoke test
+        run: |
+          pip install dist/*.whl
+          python - <<'EOF'
+          import textsift
+
+          r = textsift.dedup(["a b c d e f", "a b c d e f", "x y z"])
+          assert r.exact_dupes == 1, r.stats()
+          assert sum(r.is_representative) == 2, r.stats()
+          assert r.unique_indices() == [0, 2], r.unique_indices()
+
+          try:
+              textsift.dedup(["a"], num_perm=0)
+              raise SystemExit("expected ValueError for num_perm=0")
+          except ValueError:
+              pass
+
+          print("python smoke OK:", r.stats())
+          EOF
 
   fmt:
     runs-on: ubuntu-latest
