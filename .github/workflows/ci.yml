@@ -70,6 +70,11 @@ jobs:
           except ValueError:
               pass
 
+          recs = [{"a": "x", "b": "y"}, {"a": "x", "b": "y"}, {"a": "z"}]
+          clean, rr = textsift.dedup_records(recs, ["a", "b"])
+          assert len(clean) == 2 and rr.total == 3, rr.stats()
+          assert len(r.similarity) == 3
+
           print("python smoke OK:", r.stats())
           EOF
 
