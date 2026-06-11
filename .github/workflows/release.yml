@@ -1,0 +1,65 @@
+name: Release
+
+# Builds abi3 wheels (one per platform, CPython >= 3.9) plus sdist, and
+# publishes to PyPI on version tags.
+#
+# One-time setup required before the first release:
+#   1. PyPI → your account → Publishing → add a "trusted publisher":
+#      repo sebastianbreguel/textsift, workflow release.yml, environment pypi.
+#      (No API token needed — publishing uses GitHub OIDC.)
+#   2. GitHub repo → Settings → Environments → create environment "pypi".
+#   3. crates.io is published manually: cargo login && cargo publish
+#
+# Then: git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, macos-13, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+  publish:
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # PyPI trusted publishing via OIDC
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

@@ -28,7 +28,8 @@ default = []
 python = ["pyo3"]
 # Only maturin enables this (see pyproject.toml): linking as an extension
 # module breaks `cargo test --features python`, which needs libpython.
-extension-module = ["python", "pyo3/extension-module"]
+# abi3-py39 → one wheel covers every CPython >= 3.9.
+extension-module = ["python", "pyo3/extension-module", "pyo3/abi3-py39"]
 
 [dev-dependencies]
 assert_cmd = "2"

@@ -3,7 +3,7 @@
 [![CI](https://github.com/sebastianbreguel/textsift/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianbreguel/textsift/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://pypi.org/project/textsift/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://github.com/sebastianbreguel/textsift)
 
 **96x faster than datasketch. 2x faster than rensa. Same results.**
 
@@ -46,12 +46,14 @@ textsift, rensa, and datasketch detect the same duplicates at the same threshold
 
 ## Install
 
+> Not yet published to crates.io / PyPI — install from source for now (both need the Rust toolchain).
+
 **CLI** (Rust):
 ```bash
-cargo install textsift
+cargo install --git https://github.com/sebastianbreguel/textsift
 ```
 
-**Python** (requires Rust toolchain):
+**Python**:
 ```bash
 pip install maturin
 git clone https://github.com/sebastianbreguel/textsift
