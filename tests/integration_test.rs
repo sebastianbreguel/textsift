@@ -354,3 +354,22 @@ fn gzipped_input_works_transparently() {
     );
     assert!(stdout.contains("gz doc two"));
 }
+
+#[test]
+fn typoed_field_warns_loudly_with_available_keys() {
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "instructions", "--exact-only"])
+        .write_stdin(
+            "{\"instruction\":\"a\",\"output\":\"b\"}\n{\"instruction\":\"c\",\"output\":\"d\"}\n",
+        )
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("not found in ANY"), "stderr: {stderr}");
+    assert!(stderr.contains("instruction"), "lists available keys");
+    // Docs still pass through — pipe safety preserved.
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout.trim().lines().count(), 2);
+}

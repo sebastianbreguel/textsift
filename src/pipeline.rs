@@ -199,6 +199,28 @@ fn extract_key(value: &Value, fields: &[String]) -> Option<String> {
     Some(parts?.join(" \u{1F} "))
 }
 
+/// Loud warning when the requested field(s) matched nothing — almost always
+/// a typo'd --field. Lists the first doc's keys to point at the fix.
+fn warn_field_never_found(fields: &[String], total: usize, first_doc_keys: &[String]) {
+    if total == 0 {
+        return;
+    }
+    eprintln!(
+        "warning: field '{}' not found in ANY of the {total} docs — output equals input. \
+         Fields available in the first doc: {}",
+        fields.join(", "),
+        first_doc_keys.join(", ")
+    );
+}
+
+/// Top-level keys of a JSON object, for the typo'd-field warning.
+fn doc_keys(value: &Value) -> Vec<String> {
+    value
+        .as_object()
+        .map(|o| o.keys().cloned().collect())
+        .unwrap_or_default()
+}
+
 /// CLI entry point: read JSONL → deduplicate → write output.
 pub fn run(args: &Cli) -> Result<()> {
     let config = DedupConfig::from(args);
@@ -221,6 +243,7 @@ pub fn run(args: &Cli) -> Result<()> {
     let mut lines: Vec<(String, bool)> = Vec::new();
     let mut texts: Vec<String> = Vec::new();
     let mut missing_field = 0usize;
+    let mut first_doc_keys: Vec<String> = Vec::new();
 
     for (line_num, line_result) in crate::io::read_lines(reader) {
         let line = match line_result {
@@ -232,6 +255,9 @@ pub fn run(args: &Cli) -> Result<()> {
         };
         match serde_json::from_str::<Value>(&line) {
             Ok(value) => {
+                if lines.is_empty() {
+                    first_doc_keys = doc_keys(&value);
+                }
                 let has_field = match extract_key(&value, &args.field) {
                     Some(text) => {
                         texts.push(text);
@@ -250,6 +276,10 @@ pub fn run(args: &Cli) -> Result<()> {
             }
             Err(e) => eprintln!("warning: invalid JSON on line {line_num}: {e}"),
         }
+    }
+
+    if missing_field == lines.len() {
+        warn_field_never_found(&args.field, lines.len(), &first_doc_keys);
     }
 
     let result = deduplicate(&texts, &config);
@@ -323,6 +353,7 @@ fn run_exact_streaming(
     let mut total = 0usize;
     let mut dupes = 0usize;
     let mut missing_field = 0usize;
+    let mut first_doc_keys: Vec<String> = Vec::new();
 
     for (line_num, line_result) in crate::io::read_lines(reader) {
         let line = match line_result {
@@ -334,6 +365,9 @@ fn run_exact_streaming(
         };
         match serde_json::from_str::<Value>(&line) {
             Ok(value) => {
+                if total == 0 {
+                    first_doc_keys = doc_keys(&value);
+                }
                 total += 1;
                 match extract_key(&value, &args.field) {
                     Some(text) => {
@@ -355,6 +389,10 @@ fn run_exact_streaming(
             }
             Err(e) => eprintln!("warning: invalid JSON on line {line_num}: {e}"),
         }
+    }
+
+    if missing_field == total {
+        warn_field_never_found(&args.field, total, &first_doc_keys);
     }
 
     if args.stats {
