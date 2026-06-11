@@ -59,6 +59,11 @@ pub struct DedupResult {
 
 /// Pure computation: deduplicate a slice of texts, return cluster assignments.
 /// No I/O, no CLI dependency — suitable for library use and PyO3 bindings.
+///
+/// # Panics
+///
+/// Panics on invalid configs (`num_perm == 0`, `shingle_size == 0`).
+/// Call [`DedupConfig::validate`] first, as the CLI and Python surfaces do.
 pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
     let total = texts.len();
 

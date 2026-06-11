@@ -43,6 +43,7 @@ textsift, rensa, and datasketch detect the same duplicates at the same threshold
 
 - Docs missing the `--field` key are **passed through unchanged** (with a stderr warning), never silently dropped
 - Invalid JSON lines are skipped with a warning
+- Blank lines are skipped; line endings are normalized to `\n` (line *content* is byte-identical)
 
 ## Install
 
