@@ -5,3 +5,6 @@ Cargo.lock
 .DS_Store
 testdata/medium.jsonl
 .venv/
+testdata/100k.jsonl
+testdata/1m.jsonl
+launch/

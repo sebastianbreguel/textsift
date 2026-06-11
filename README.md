@@ -25,12 +25,12 @@ Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates)
 
 | Tool | 100K docs | 1M docs | Language | Interface |
 |------|----------|---------|----------|-----------|
-| **textsift** | **0.39s** | **5.1s** | Rust | CLI + Python |
+| **textsift** | **0.39s** | **4.6s** | Rust | CLI + Python |
 | rensa | 0.92s | 9.8s | Rust+PyO3 | Python only |
+| text-dedup | 8.2s | 51.0s | Python | CLI only |
 | datasketch | 37.8s | 405s | Python | Python only |
-| text-dedup | ~3 min | ~5 min | Python | CLI + Python |
 
-All tools detect the same duplicates at the same threshold — [verified with 0% difference](scripts/correctness_test.py) on 100K docs.
+textsift, rensa, and datasketch detect the same duplicates at the same threshold — [verified with 0% difference](scripts/correctness_test.py) on 100K docs. text-dedup uses character n-grams (vs word n-grams), producing different duplicate counts at the same settings.
 
 ### Why it's fast
 
@@ -179,6 +179,9 @@ cargo build --release
 
 # Run benchmarks (textsift vs rensa vs datasketch)
 uv run --with rensa --with datasketch scripts/benchmark_rensa.py testdata/100k.jsonl --field text
+
+# Run benchmarks (textsift vs text-dedup)
+uv run --with 'text-dedup>=0.4' --with pyarrow scripts/benchmark_textdedup.py testdata/100k.jsonl --field text
 
 # Correctness test
 uv run --with datasketch scripts/correctness_test.py

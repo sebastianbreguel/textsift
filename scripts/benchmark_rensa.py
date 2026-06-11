@@ -7,7 +7,6 @@ import argparse
 import json
 import os
 import subprocess
-import sys
 import time
 
 
@@ -107,12 +106,12 @@ def bench_rensa_cminhash(docs, threshold, num_perm, shingle_size):
     return elapsed, unique, len(duplicates)
 
 
-def bench_textsift(input_path, threshold, num_perm, shingle_size):
+def bench_textsift(input_path, field, threshold, num_perm, shingle_size):
     textsift = os.path.join(os.path.dirname(__file__), "..", "target", "release", "textsift")
 
     t0 = time.perf_counter()
     result = subprocess.run(
-        [textsift, input_path, "--field", "text",
+        [textsift, input_path, "--field", field,
          "--threshold", str(threshold),
          "--num-perm", str(num_perm),
          "--shingle-size", str(shingle_size),
@@ -157,7 +156,7 @@ def main():
 
     # textsift
     ts_time, ts_unique, ts_dupes = bench_textsift(
-        args.input, args.threshold, args.num_perm, args.shingle_size
+        args.input, args.field, args.threshold, args.num_perm, args.shingle_size
     )
     print(f"textsift     | {ts_time:7.2f}s | unique: {ts_unique:>8,} | dupes: {ts_dupes:>8,}")
 
@@ -179,7 +178,6 @@ def main():
             m = CMinHash(num_perm=args.num_perm, seed=42)
             m.update(shingles)
         c_time = time.perf_counter() - t0
-        c_unique, c_dupes = 0, 0
         print(f"rensa CMin   | {c_time:7.2f}s | (hash-only, no LSH dedup)")
     except Exception as e:
         c_time = None
@@ -193,7 +191,7 @@ def main():
         print(f"datasketch   | {ds_time:7.2f}s | unique: {ds_unique:>8,} | dupes: {ds_dupes:>8,}")
     else:
         ds_time = None
-        print(f"datasketch   | SKIPPED")
+        print("datasketch   | SKIPPED")
 
     print("=" * 70)
     print(f"\ntextsift vs rensa RMinHash:  {r_time/ts_time:.1f}x faster")

@@ -187,7 +187,7 @@ def test_near_duplicates():
         if both_catch_exact:
             print("  ✅ PASS: Both correctly removed all exact duplicates (ids 3, 5, 6)")
         else:
-            print(f"  ❌ FAIL: exact dup detection mismatch")
+            print("  ❌ FAIL: exact dup detection mismatch")
 
         overlap = len(agreement) / max(len(ts_removed | ds_removed), 1)
         print(f"\n  Overlap ratio: {overlap:.0%}")
