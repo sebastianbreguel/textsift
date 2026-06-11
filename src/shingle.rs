@@ -15,10 +15,7 @@ pub fn shingles(text: &str, size: usize) -> Vec<String> {
         return vec![words.join(" ")];
     }
 
-    words
-        .windows(size)
-        .map(|w| w.join(" "))
-        .collect()
+    words.windows(size).map(|w| w.join(" ")).collect()
 }
 
 #[cfg(test)]
@@ -27,10 +24,7 @@ mod tests {
 
     #[test]
     fn basic_shingles() {
-        assert_eq!(
-            shingles("a b c d e f", 5),
-            vec!["a b c d e", "b c d e f"]
-        );
+        assert_eq!(shingles("a b c d e f", 5), vec!["a b c d e", "b c d e f"]);
     }
 
     #[test]
@@ -45,9 +39,6 @@ mod tests {
 
     #[test]
     fn exact_size() {
-        assert_eq!(
-            shingles("one two three", 3),
-            vec!["one two three"]
-        );
+        assert_eq!(shingles("one two three", 3), vec!["one two three"]);
     }
 }

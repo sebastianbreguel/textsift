@@ -9,6 +9,12 @@ pub struct ExactDedup {
     groups: AHashMap<u64, Vec<usize>>,
 }
 
+impl Default for ExactDedup {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExactDedup {
     pub fn new() -> Self {
         Self {

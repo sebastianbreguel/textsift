@@ -24,7 +24,12 @@ impl MinHasher {
                     .wrapping_mul(i as u64 + 1)
                     .wrapping_add(0x517cc1b727220a95);
                 // ahash RandomState with fixed seeds → deterministic
-                RandomState::with_seeds(seed, seed.wrapping_add(1), seed.wrapping_add(2), seed.wrapping_add(3))
+                RandomState::with_seeds(
+                    seed,
+                    seed.wrapping_add(1),
+                    seed.wrapping_add(2),
+                    seed.wrapping_add(3),
+                )
             })
             .collect();
 

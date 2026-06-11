@@ -20,7 +20,7 @@ pub fn optimal_params(threshold: f64, num_perm: usize) -> (usize, usize) {
     let mut best_dist = f64::MAX;
 
     for b in 1..=num_perm {
-        if num_perm % b != 0 {
+        if !num_perm.is_multiple_of(b) {
             continue;
         }
         let r = num_perm / b;

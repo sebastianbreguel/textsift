@@ -85,11 +85,7 @@ fn skips_lines_with_missing_field() {
 #[test]
 fn nested_json_preserved() {
     let mut file = NamedTempFile::new().unwrap();
-    writeln!(
-        file,
-        r#"{{"text":"hello","nested":{{"a":1,"b":[2,3]}}}}"#
-    )
-    .unwrap();
+    writeln!(file, r#"{{"text":"hello","nested":{{"a":1,"b":[2,3]}}}}"#).unwrap();
 
     let output = textsift()
         .arg(file.path())

@@ -124,10 +124,7 @@ fn end_to_end_minhash_lsh_cluster() {
         "quantum computing exploits superposition and entanglement for parallel computation",
     ];
 
-    let sigs: Vec<_> = docs
-        .iter()
-        .map(|d| mh.signature(&shingles(d, 3)))
-        .collect();
+    let sigs: Vec<_> = docs.iter().map(|d| mh.signature(&shingles(d, 3))).collect();
 
     // Verify similarity assumptions
     let j01 = MinHasher::jaccard(&sigs[0], &sigs[1]);
@@ -155,11 +152,7 @@ fn end_to_end_minhash_lsh_cluster() {
     assert_eq!(uf.find(0), uf.find(1), "doc0 and doc1 should share a root");
     // doc2 should be alone (unless false-positive paired it with 0 or 1)
     if !pairs.contains(&(0, 2)) && !pairs.contains(&(1, 2)) {
-        assert_ne!(
-            uf.find(0),
-            uf.find(2),
-            "doc2 should be in its own cluster"
-        );
+        assert_ne!(uf.find(0), uf.find(2), "doc2 should be in its own cluster");
     }
 
     // Every element appears in exactly one cluster

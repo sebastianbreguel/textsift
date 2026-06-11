@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use crate::pipeline::{DedupConfig, DedupResult as RustDedupResult, deduplicate};
+use crate::pipeline::{deduplicate, DedupConfig, DedupResult as RustDedupResult};
 
 #[pyclass]
 #[derive(Clone)]

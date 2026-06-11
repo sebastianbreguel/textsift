@@ -172,8 +172,14 @@ pub fn run(args: &Cli) -> Result<()> {
     if args.clusters {
         for (i, mut doc) in docs.into_iter().enumerate() {
             if let Some(obj) = doc.as_object_mut() {
-                obj.insert("cluster_id".into(), Value::from(result.cluster_ids[i] as u64));
-                obj.insert("is_representative".into(), Value::from(result.is_representative[i]));
+                obj.insert(
+                    "cluster_id".into(),
+                    Value::from(result.cluster_ids[i] as u64),
+                );
+                obj.insert(
+                    "is_representative".into(),
+                    Value::from(result.is_representative[i]),
+                );
             }
             crate::io::write_jsonl(&mut writer, &doc)?;
         }
@@ -195,4 +201,3 @@ pub fn run(args: &Cli) -> Result<()> {
 
     Ok(())
 }
-

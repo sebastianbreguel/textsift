@@ -15,8 +15,7 @@ fn make_jsonl(docs: &[&str]) -> NamedTempFile {
 #[test]
 fn ten_docs_three_exact_duplicates() {
     let docs = vec![
-        "alpha", "bravo", "charlie", "alpha", "delta", "echo", "bravo", "foxtrot", "golf",
-        "alpha",
+        "alpha", "bravo", "charlie", "alpha", "delta", "echo", "bravo", "foxtrot", "golf", "alpha",
     ];
     // unique: alpha, bravo, charlie, delta, echo, foxtrot, golf = 7
     let input = make_jsonl(&docs);
@@ -30,7 +29,12 @@ fn ten_docs_three_exact_duplicates() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.lines().collect();
-    assert_eq!(lines.len(), 7, "expected 7 unique docs, got {}", lines.len());
+    assert_eq!(
+        lines.len(),
+        7,
+        "expected 7 unique docs, got {}",
+        lines.len()
+    );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("exact duplicates: 3"));
@@ -49,7 +53,11 @@ fn empty_text_field_counts_as_duplicate() {
         .unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout.lines().count(), 1, "only one empty string should survive");
+    assert_eq!(
+        stdout.lines().count(),
+        1,
+        "only one empty string should survive"
+    );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("exact duplicates: 1"));

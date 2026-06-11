@@ -1,12 +1,9 @@
-use textsift::minhash::{MinHasher, Signature};
+use textsift::minhash::MinHasher;
 use textsift::shingle::shingles;
 
 #[test]
 fn shingles_basic() {
-    assert_eq!(
-        shingles("a b c d e f", 5),
-        vec!["a b c d e", "b c d e f"]
-    );
+    assert_eq!(shingles("a b c d e f", 5), vec!["a b c d e", "b c d e f"]);
 }
 
 #[test]
@@ -45,7 +42,10 @@ fn completely_different_texts_low_jaccard() {
     let sig_a = mh.signature(&sh_a);
     let sig_b = mh.signature(&sh_b);
     let j = MinHasher::jaccard(&sig_a, &sig_b);
-    assert!(j < 0.1, "expected jaccard < 0.1 for disjoint texts, got {j}");
+    assert!(
+        j < 0.1,
+        "expected jaccard < 0.1 for disjoint texts, got {j}"
+    );
 }
 
 #[test]
