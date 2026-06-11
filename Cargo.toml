@@ -22,7 +22,7 @@ anyhow = "1"
 ahash = "0.8"
 flate2 = "1"
 rayon = "1.10"
-pyo3 = { version = "0.28", optional = true }
+pyo3 = { version = "0.29", optional = true }
 
 [features]
 default = []
