@@ -5,9 +5,9 @@ Usage:
 """
 import argparse
 import json
-import os
-import subprocess
 import time
+
+from bench_common import bench_textsift
 
 
 def bench_datasketch(docs, threshold, num_perm, shingle_size):
@@ -105,32 +105,6 @@ def bench_rensa_cminhash(docs, threshold, num_perm, shingle_size):
     unique = len(docs) - len(duplicates)
     return elapsed, unique, len(duplicates)
 
-
-def bench_textsift(input_path, field, threshold, num_perm, shingle_size):
-    textsift = os.path.join(os.path.dirname(__file__), "..", "target", "release", "textsift")
-
-    t0 = time.perf_counter()
-    result = subprocess.run(
-        [textsift, input_path, "--field", field,
-         "--threshold", str(threshold),
-         "--num-perm", str(num_perm),
-         "--shingle-size", str(shingle_size),
-         "--stats"],
-        capture_output=True, text=True
-    )
-    elapsed = time.perf_counter() - t0
-
-    unique = 0
-    dupes = 0
-    for line in result.stderr.strip().split("\n"):
-        if "unique docs emitted" in line:
-            unique = int(line.split(":")[1].strip())
-        elif "exact duplicates" in line:
-            dupes += int(line.split(":")[1].strip())
-        elif "near duplicates" in line:
-            dupes += int(line.split(":")[1].strip())
-
-    return elapsed, unique, dupes
 
 
 def main():

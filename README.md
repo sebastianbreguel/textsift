@@ -119,6 +119,17 @@ result = dedup(
 )
 ```
 
+Invalid parameters (`num_perm=0`, `shingle_size=0`, threshold outside 0–1) raise `ValueError`. The GIL is released during computation, so other Python threads keep running.
+
+**Result:**
+```python
+result.cluster_ids        # list[int] — cluster id per input text
+result.is_representative  # list[bool] — True for the doc kept per cluster
+result.unique_indices()   # list[int] — indices of kept docs (shortcut for filtering)
+result.stats()            # "total: 5, exact_dupes: 2, near_dupes: 0, unique: 3"
+result.total, result.exact_dupes, result.near_dupes, result.unique_clusters
+```
+
 ### Output Modes
 
 **Default** — clean JSONL, no extra fields:

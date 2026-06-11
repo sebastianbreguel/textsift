@@ -3,7 +3,8 @@ use pyo3::prelude::*;
 
 use crate::pipeline::{deduplicate, DedupConfig, DedupResult as RustDedupResult};
 
-#[pyclass]
+// skip_from_py_object: results flow Rust→Python only, never back in.
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 pub struct DedupResult {
     #[pyo3(get)]
@@ -70,9 +71,9 @@ fn dedup(
     };
     config.validate().map_err(PyValueError::new_err)?;
 
-    // Release the GIL: dedup is pure Rust and can run for seconds on large
-    // corpora — other Python threads shouldn't be blocked meanwhile.
-    let result = py.allow_threads(|| deduplicate(&texts, &config));
+    // Release the GIL (detach): dedup is pure Rust and can run for seconds on
+    // large corpora — other Python threads shouldn't be blocked meanwhile.
+    let result = py.detach(|| deduplicate(&texts, &config));
     Ok(result.into())
 }
 
