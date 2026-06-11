@@ -174,11 +174,10 @@ pub fn run(args: &Cli) -> Result<()> {
     let reader = crate::io::open_reader(&args.input)?;
     let mut writer = crate::io::open_writer(args.output.as_deref())?;
 
-    // Raw input lines, emitted untouched in default mode (byte-identical
-    // passthrough). `has_text[i]` marks lines that carry the dedup field;
-    // their extracted texts (in line order) feed `deduplicate`.
-    let mut lines: Vec<String> = Vec::new();
-    let mut has_text: Vec<bool> = Vec::new();
+    // Raw input lines (emitted untouched in default mode — byte-identical
+    // passthrough), each paired with whether it carries the dedup field.
+    // Extracted texts (in line order) feed `deduplicate`.
+    let mut lines: Vec<(String, bool)> = Vec::new();
     let mut texts: Vec<String> = Vec::new();
     let mut missing_field = 0usize;
 
@@ -192,21 +191,21 @@ pub fn run(args: &Cli) -> Result<()> {
         };
         match serde_json::from_str::<Value>(&line) {
             Ok(value) => {
-                match crate::io::extract_field(&value, &args.field) {
+                let has_field = match crate::io::extract_field(&value, &args.field) {
                     Some(text) => {
                         texts.push(text.to_owned());
-                        has_text.push(true);
+                        true
                     }
                     None => {
                         eprintln!(
                             "warning: line {line_num} missing field '{}' — passed through",
                             args.field
                         );
-                        has_text.push(false);
                         missing_field += 1;
+                        false
                     }
-                }
-                lines.push(line);
+                };
+                lines.push((line, has_field));
             }
             Err(e) => eprintln!("warning: invalid JSON on line {line_num}: {e}"),
         }
@@ -215,44 +214,37 @@ pub fn run(args: &Cli) -> Result<()> {
     let result = deduplicate(&texts, &config);
 
     // Walk lines in input order; text_idx advances only over lines that
-    // participated in dedup. Lines without the field pass through as unique.
+    // participated in dedup. Lines without the field pass through as unique,
+    // taking fresh cluster ids after the dedup clusters.
     let mut text_idx = 0usize;
+    let mut next_cluster = result.unique_clusters;
 
-    if args.clusters {
-        let mut next_cluster = result.unique_clusters;
-        for (i, line) in lines.iter().enumerate() {
-            let (cid, rep) = if has_text[i] {
-                let v = (
-                    result.cluster_ids[text_idx],
-                    result.is_representative[text_idx],
-                );
-                text_idx += 1;
-                v
-            } else {
-                let cid = next_cluster;
-                next_cluster += 1;
-                (cid, true)
-            };
+    for (line, has_field) in &lines {
+        let (cid, rep) = if *has_field {
+            let v = (
+                result.cluster_ids[text_idx],
+                result.is_representative[text_idx],
+            );
+            text_idx += 1;
+            v
+        } else {
+            let cid = next_cluster;
+            next_cluster += 1;
+            (cid, true)
+        };
+
+        if args.clusters {
             // Re-parse only in clusters mode, where fields must be injected.
+            // Deliberate CPU-for-memory trade: storing parsed Values for the
+            // whole corpus costs far more RAM than re-parsing on emit.
             let mut doc: Value = serde_json::from_str(line)?;
             if let Some(obj) = doc.as_object_mut() {
                 obj.insert("cluster_id".into(), Value::from(cid as u64));
                 obj.insert("is_representative".into(), Value::from(rep));
             }
             crate::io::write_jsonl(&mut writer, &doc)?;
-        }
-    } else {
-        for (i, line) in lines.iter().enumerate() {
-            let emit = if has_text[i] {
-                let r = result.is_representative[text_idx];
-                text_idx += 1;
-                r
-            } else {
-                true
-            };
-            if emit {
-                crate::io::write_line(&mut writer, line)?;
-            }
+        } else if rep {
+            crate::io::write_line(&mut writer, line)?;
         }
     }
 

@@ -169,18 +169,33 @@ fn docs_missing_field_pass_through() {
 }
 
 #[test]
-fn clusters_mode_assigns_cluster_to_missing_field_docs() {
+fn clusters_mode_handles_interleaved_missing_field_docs() {
+    // Fieldless doc sits BETWEEN two exact duplicates — the dedup-index
+    // bookkeeping must not drift past it.
+    let input = "{\"text\":\"dup doc\",\"id\":0}\n\
+                 {\"other\":\"fieldless\",\"id\":1}\n\
+                 {\"text\":\"dup doc\",\"id\":2}\n";
     let output = textsift()
         .arg("-")
         .args(["--field", "text", "--clusters"])
-        .write_stdin("{\"text\":\"some doc\"}\n{\"other\":\"fieldless\"}\n")
+        .write_stdin(input)
         .output()
         .unwrap();
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    let lines: Vec<&str> = stdout.trim().lines().collect();
-    assert_eq!(lines.len(), 2);
-    let v: serde_json::Value = serde_json::from_str(lines[1]).unwrap();
-    assert_eq!(v["is_representative"], true);
-    assert!(v["cluster_id"].is_u64());
+    let docs: Vec<serde_json::Value> = stdout
+        .trim()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(docs.len(), 3);
+
+    // The two dups share a cluster; only the first is representative.
+    assert_eq!(docs[0]["cluster_id"], docs[2]["cluster_id"]);
+    assert_eq!(docs[0]["is_representative"], true);
+    assert_eq!(docs[2]["is_representative"], false);
+
+    // The fieldless doc gets its own fresh cluster and stays representative.
+    assert_ne!(docs[1]["cluster_id"], docs[0]["cluster_id"]);
+    assert_eq!(docs[1]["is_representative"], true);
 }
