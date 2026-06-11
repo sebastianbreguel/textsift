@@ -63,6 +63,22 @@ git clone https://github.com/sebastianbreguel/textsift
 cd textsift && maturin develop --release
 ```
 
+## Quick start
+
+```bash
+# Try it on the tiny corpus that ships with the repo
+cargo build --release
+./target/release/textsift testdata/small.jsonl --field text --stats > /tmp/clean.jsonl
+
+# Or on your own data: one JSON object per line, text under any key
+echo '{"text":"hello world"}
+{"text":"hello world"}
+{"text":"something else"}' | ./target/release/textsift - --field text
+```
+
+Stats print to **stderr** (so they never pollute the deduplicated stdout stream):
+capture them with `2>stats.txt` or view alongside output with `--stats`.
+
 ## Usage
 
 ### CLI
@@ -70,6 +86,9 @@ cd textsift && maturin develop --release
 ```bash
 # Remove duplicates — output is clean JSONL, same schema as input
 textsift data.jsonl --field text > clean.jsonl
+
+# Gzipped input is detected automatically (magic bytes, any file name)
+textsift corpus.jsonl.gz --field text > clean.jsonl
 
 # See duplicate clusters before removing anything
 textsift data.jsonl --field text --clusters | jq 'select(.is_representative == false)'
@@ -89,6 +108,22 @@ cat data.jsonl | textsift - --field text > clean.jsonl
 # Lower threshold to catch more near-duplicates
 textsift data.jsonl --field text --threshold 0.5 > clean.jsonl
 ```
+
+### Choosing a threshold
+
+`--threshold` is the estimated [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) (shared word 5-grams / total word 5-grams) above which two docs count as near-duplicates. **The default 0.8 is strict** — it catches near-identical docs but very few paraphrases.
+
+| Threshold | Catches | Risk |
+|-----------|---------|------|
+| 0.9+ | Near-identical only (a few words changed in a long doc) | Misses most near-dups |
+| **0.8** (default) | Light edits, boilerplate variants | Safe default |
+| 0.6–0.7 | Moderate paraphrases, reordered sentences | Some false positives |
+| 0.5 | Aggressive — loose paraphrases | Real risk of merging distinct docs |
+
+Two more levers:
+
+- **Short texts** (tweets, titles): lower `--shingle-size` to 2–3 — a doc shorter than the shingle size becomes a single shingle, making near-dup detection all-or-nothing.
+- **Audit before trusting**: run with `--clusters` and inspect the `similarity` field on borderline members, e.g. `textsift data.jsonl --field text --clusters | jq 'select(.similarity < 0.9 and .is_representative == false)'`.
 
 ### Python
 
@@ -129,9 +164,22 @@ Invalid parameters (`num_perm=0`, `shingle_size=0`, threshold outside 0–1) rai
 ```python
 result.cluster_ids        # list[int] — cluster id per input text
 result.is_representative  # list[bool] — True for the doc kept per cluster
+result.similarity         # list[float] — Jaccard vs cluster representative (1.0 for reps/exact dups)
 result.unique_indices()   # list[int] — indices of kept docs (shortcut for filtering)
 result.stats()            # "total: 5, exact_dupes: 2, near_dupes: 0, unique: 3"
 result.total, result.exact_dupes, result.near_dupes, result.unique_clusters
+```
+
+**Records (dicts) in one call** — no extract/zip glue:
+```python
+records = [
+    {"instruction": "sum 1+1", "output": "2"},
+    {"instruction": "sum 1+1", "output": "2"},   # duplicate pair
+    {"instruction": "sum 1+1", "output": "3"},   # same instruction, different output — kept
+]
+clean, result = textsift.dedup_records(records, ["instruction", "output"], threshold=0.8)
+# clean == the 2 kept records; result arrays align 1:1 with the input list.
+# Records missing a requested field pass through as unique (like the CLI).
 ```
 
 ### Output Modes
@@ -142,11 +190,12 @@ result.total, result.exact_dupes, result.near_dupes, result.unique_clusters
 {"text": "another document", "id": 3}
 ```
 
-**Clusters** (`--clusters`) — every doc labeled with cluster assignment:
+**Clusters** (`--clusters`) — every doc labeled with cluster assignment and similarity to its cluster's representative:
 ```jsonl
-{"text": "the quick brown fox", "id": 1, "cluster_id": 0, "is_representative": true}
-{"text": "the quick brown fox", "id": 2, "cluster_id": 0, "is_representative": false}
-{"text": "another document", "id": 3, "cluster_id": 1, "is_representative": true}
+{"text": "the quick brown fox", "id": 1, "cluster_id": 0, "is_representative": true, "similarity": 1.0}
+{"text": "the quick brown fox", "id": 2, "cluster_id": 0, "is_representative": false, "similarity": 1.0}
+{"text": "the quick brown foxes", "id": 3, "cluster_id": 0, "is_representative": false, "similarity": 0.82}
+{"text": "another document", "id": 4, "cluster_id": 1, "is_representative": true, "similarity": 1.0}
 ```
 
 ## When to use textsift vs alternatives
@@ -164,7 +213,7 @@ textsift does one thing: dedup text fast on a single machine. If you need distri
 ## How it works
 
 1. **Exact dedup** — hash each text with ahash, skip if seen before. O(n).
-2. **Shingling** — split text into word 5-grams (configurable with `--shingle-size`).
+2. **Shingling** — split text into overlapping word sequences ("shingles"): with `--shingle-size 5`, every 5-word window becomes one shingle, so similar docs share many shingles and unrelated docs share almost none.
 3. **MinHash** — compute 128 min-hash signatures per document (configurable with `--num-perm`). Parallelized with rayon.
 4. **LSH banding** — split signatures into bands, hash each band to buckets. Documents sharing a bucket in any band are candidate pairs. Bands/rows auto-calculated from `--threshold`.
 5. **Union-Find clustering** — candidate pairs verified against threshold, then clustered with disjoint-set (path compression + union by rank).
@@ -190,6 +239,8 @@ Options:
   -h, --help                   Print help
   -V, --version                Print version
 ```
+
+Exit codes: `0` success · `1` runtime error (bad file, invalid params) · `2` usage error (bad flags). Gzipped input files are detected automatically; for gzipped **stdin**, pipe through `gunzip -c file.gz | textsift - --field text`.
 
 ## Reproduce benchmarks
 
