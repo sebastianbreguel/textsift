@@ -77,8 +77,11 @@ textsift data.jsonl --field text --clusters | jq 'select(.is_representative == f
 # Quick stats: how many duplicates?
 textsift data.jsonl --field text --stats > /dev/null
 
-# Exact duplicates only (skip MinHash, fastest mode)
+# Exact duplicates only — streams in constant memory, any corpus size
 textsift data.jsonl --field text --exact-only > clean.jsonl
+
+# Composite key: dedup on instruction+output pairs (fine-tuning datasets)
+textsift data.jsonl --field instruction --field output --exact-only > clean.jsonl
 
 # Pipe from stdin
 cat data.jsonl | textsift - --field text > clean.jsonl
@@ -176,7 +179,7 @@ Arguments:
   <INPUT>    Input file (JSONL). Use - for stdin.
 
 Options:
-  -f, --field <FIELD>          JSON field containing text [required]
+  -f, --field <FIELD>          JSON field containing text; repeat for composite keys [required]
   -t, --threshold <FLOAT>      Jaccard similarity threshold [default: 0.8]
   -n, --num-perm <INT>         MinHash permutations [default: 128]
       --shingle-size <INT>     Word n-gram size [default: 5]
@@ -218,7 +221,7 @@ uv run --with datasketch scripts/correctness_test.py
 
 ## Limitations
 
-- Loads all documents + signatures in memory. Practical limit ~5M docs on 16GB RAM.
+- Near-dedup mode loads all documents + signatures in memory — practical limit ~5M docs on 16GB RAM. `--exact-only` streams in constant memory (1M docs: ~100MB vs ~1.1GB).
 - JSONL only — no Parquet, no CSV, no HuggingFace datasets (yet).
 - MinHash LSH only — no SimHash, no suffix arrays, no semantic dedup.
 - Python bindings require building from source (PyPI wheels coming soon).

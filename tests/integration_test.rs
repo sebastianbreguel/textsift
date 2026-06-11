@@ -179,3 +179,97 @@ fn clusters_mode_handles_interleaved_missing_field_docs() {
     assert_ne!(docs[1]["cluster_id"], docs[0]["cluster_id"]);
     assert_eq!(docs[1]["is_representative"], true);
 }
+
+#[test]
+fn multi_field_composite_key_dedup() {
+    // Same instruction+output → dup; same instruction, different output → kept.
+    let input = "{\"instruction\":\"sum\",\"output\":\"2\",\"id\":0}\n\
+                 {\"instruction\":\"sum\",\"output\":\"2\",\"id\":1}\n\
+                 {\"instruction\":\"sum\",\"output\":\"3\",\"id\":2}\n";
+    let output = textsift()
+        .arg("-")
+        .args([
+            "--field",
+            "instruction",
+            "--field",
+            "output",
+            "--exact-only",
+        ])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let lines: Vec<&str> = stdout.trim().lines().collect();
+    assert_eq!(lines.len(), 2);
+    assert!(stdout.contains("\"id\":0"));
+    assert!(!stdout.contains("\"id\":1"));
+    assert!(stdout.contains("\"id\":2"));
+}
+
+#[test]
+fn multi_field_no_boundary_collision() {
+    // ["a b", "c"] vs ["a", "b c"] must NOT collide as a composite key.
+    let input = "{\"x\":\"a b\",\"y\":\"c\"}\n{\"x\":\"a\",\"y\":\"b c\"}\n";
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "x", "--field", "y", "--exact-only"])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim().lines().count(),
+        2,
+        "different keys, both kept"
+    );
+}
+
+#[test]
+fn multi_field_missing_one_passes_through() {
+    let input = "{\"x\":\"a\",\"y\":\"b\"}\n{\"x\":\"only x\"}\n";
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "x", "--field", "y", "--exact-only"])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(stdout.trim().lines().count(), 2);
+    assert!(stderr.contains("missing field"));
+}
+
+#[test]
+fn exact_only_streaming_parity() {
+    // Streaming path: dups skipped, fieldless passed through, byte-identical
+    // lines, stats consistent with the buffered path's format.
+    let input = "{\"text\":\"dup\",\"id\":0}\n\
+                 {\"no_field\":true}\n\
+                 {\"text\":\"dup\",\"id\":2}\n\
+                 {\"text\":\"unique\",\"id\":3}\n";
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "text", "--exact-only", "--stats"])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let lines: Vec<&str> = stdout.trim().lines().collect();
+    assert_eq!(
+        lines,
+        vec![
+            "{\"text\":\"dup\",\"id\":0}",
+            "{\"no_field\":true}",
+            "{\"text\":\"unique\",\"id\":3}",
+        ]
+    );
+    assert!(stderr.contains("total docs: 4"));
+    assert!(stderr.contains("exact duplicates: 1"));
+    assert!(stderr.contains("unique clusters: 2"));
+    assert!(stderr.contains("unique docs emitted: 3"));
+}

@@ -11,9 +11,10 @@ pub struct Cli {
     /// Input file (JSONL). Use - for stdin.
     pub input: PathBuf,
 
-    /// JSON field containing text to deduplicate
-    #[arg(short, long)]
-    pub field: String,
+    /// JSON field containing text to deduplicate (repeat for composite keys,
+    /// e.g. --field instruction --field output)
+    #[arg(short, long, required = true)]
+    pub field: Vec<String>,
 
     /// Jaccard similarity threshold for MinHash
     #[arg(short, long, default_value = "0.8")]

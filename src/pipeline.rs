@@ -171,6 +171,21 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
     }
 }
 
+/// Build the dedup key from one or more fields. `None` if any field is
+/// missing. Multi-field keys join parts with a U+001F (unit separator)
+/// sentinel word so `["a b", "c"]` and `["a", "b c"]` never collide; a single
+/// field is used as-is, byte-identical to the pre-multi-field behavior.
+fn extract_key(value: &Value, fields: &[String]) -> Option<String> {
+    if let [field] = fields {
+        return crate::io::extract_field(value, field).map(str::to_owned);
+    }
+    let parts: Option<Vec<&str>> = fields
+        .iter()
+        .map(|f| crate::io::extract_field(value, f))
+        .collect();
+    Some(parts?.join(" \u{1F} "))
+}
+
 /// CLI entry point: read JSONL → deduplicate → write output.
 pub fn run(args: &Cli) -> Result<()> {
     let config = DedupConfig::from(args);
@@ -178,6 +193,14 @@ pub fn run(args: &Cli) -> Result<()> {
 
     let reader = crate::io::open_reader(&args.input)?;
     let mut writer = crate::io::open_writer(args.output.as_deref())?;
+
+    // Exact-only default mode needs no signatures and no buffering: stream
+    // line-by-line in constant memory (first occurrence wins, same verdicts
+    // as the buffered path). --clusters still buffers — fieldless docs take
+    // cluster ids after the dedup clusters, which needs the final count.
+    if args.exact_only && !args.clusters {
+        return run_exact_streaming(args, reader, writer.as_mut());
+    }
 
     // Raw input lines (emitted untouched in default mode — byte-identical
     // passthrough), each paired with whether it carries the dedup field.
@@ -196,15 +219,15 @@ pub fn run(args: &Cli) -> Result<()> {
         };
         match serde_json::from_str::<Value>(&line) {
             Ok(value) => {
-                let has_field = match crate::io::extract_field(&value, &args.field) {
+                let has_field = match extract_key(&value, &args.field) {
                     Some(text) => {
-                        texts.push(text.to_owned());
+                        texts.push(text);
                         true
                     }
                     None => {
                         eprintln!(
                             "warning: line {line_num} missing field '{}' — passed through",
-                            args.field
+                            args.field.join(", ")
                         );
                         missing_field += 1;
                         false
@@ -265,6 +288,65 @@ pub fn run(args: &Cli) -> Result<()> {
             "unique docs emitted: {}",
             result.unique_clusters + missing_field
         );
+    }
+
+    Ok(())
+}
+
+/// Exact-only fast path: one pass, constant memory. Emits each first-seen
+/// line immediately; verdicts and stats match the buffered path exactly.
+fn run_exact_streaming(
+    args: &Cli,
+    reader: Box<dyn std::io::BufRead>,
+    writer: &mut dyn std::io::Write,
+) -> Result<()> {
+    let mut dedup = ExactDedup::new();
+    let mut total = 0usize;
+    let mut dupes = 0usize;
+    let mut missing_field = 0usize;
+
+    for (line_num, line_result) in crate::io::read_lines(reader) {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("warning: line {line_num}: {e}");
+                continue;
+            }
+        };
+        match serde_json::from_str::<Value>(&line) {
+            Ok(value) => {
+                total += 1;
+                match extract_key(&value, &args.field) {
+                    Some(text) => {
+                        if dedup.is_duplicate(&text) {
+                            dupes += 1;
+                        } else {
+                            crate::io::write_line(writer, &line)?;
+                        }
+                    }
+                    None => {
+                        eprintln!(
+                            "warning: line {line_num} missing field '{}' — passed through",
+                            args.field.join(", ")
+                        );
+                        missing_field += 1;
+                        crate::io::write_line(writer, &line)?;
+                    }
+                }
+            }
+            Err(e) => eprintln!("warning: invalid JSON on line {line_num}: {e}"),
+        }
+    }
+
+    if args.stats {
+        eprintln!("total docs: {total}");
+        eprintln!("exact duplicates: {dupes}");
+        eprintln!("near duplicates: 0");
+        eprintln!("unique clusters: {}", total - dupes - missing_field);
+        if missing_field > 0 {
+            eprintln!("docs without field (passed through): {missing_field}");
+        }
+        eprintln!("unique docs emitted: {}", total - dupes);
     }
 
     Ok(())
