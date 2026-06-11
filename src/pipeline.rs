@@ -170,6 +170,9 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
         for &dup_idx in &group[1..] {
             cluster_ids[dup_idx] = rep_cluster;
             is_representative[dup_idx] = false;
+            // Inherit the rep's similarity-to-cluster-rep: an exact copy of a
+            // near-dup member is as far from the cluster rep as its parent.
+            similarity[dup_idx] = similarity[rep_idx];
         }
     }
 
