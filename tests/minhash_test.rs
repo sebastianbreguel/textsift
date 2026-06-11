@@ -1,34 +1,31 @@
 use textsift::minhash::MinHasher;
-use textsift::shingle::shingles;
+use textsift::shingle::shingle_hashes;
 
 #[test]
-fn shingles_basic() {
-    assert_eq!(shingles("a b c d e f", 5), vec!["a b c d e", "b c d e f"]);
+fn shingle_count_basic() {
+    assert_eq!(shingle_hashes("a b c d e f", 5).len(), 2);
 }
 
 #[test]
 fn shingles_shorter_than_size() {
-    assert_eq!(shingles("hello", 5), vec!["hello"]);
+    assert_eq!(shingle_hashes("hello", 5).len(), 1);
 }
 
 #[test]
 fn shingles_empty() {
-    assert!(shingles("", 5).is_empty());
+    assert!(shingle_hashes("", 5).is_empty());
 }
 
 #[test]
 fn shingles_exact_size() {
-    assert_eq!(
-        shingles("one two three four five", 5),
-        vec!["one two three four five"]
-    );
+    assert_eq!(shingle_hashes("one two three four five", 5).len(), 1);
 }
 
 #[test]
 fn identical_texts_jaccard_one() {
     let mh = MinHasher::new(128);
     let text = "the quick brown fox jumps over the lazy dog";
-    let sh = shingles(text, 3);
+    let sh = shingle_hashes(text, 3);
     let sig_a = mh.signature(&sh);
     let sig_b = mh.signature(&sh);
     assert_eq!(MinHasher::jaccard(&sig_a, &sig_b), 1.0);
@@ -37,8 +34,8 @@ fn identical_texts_jaccard_one() {
 #[test]
 fn completely_different_texts_low_jaccard() {
     let mh = MinHasher::new(128);
-    let sh_a = shingles("alpha beta gamma delta epsilon zeta eta theta", 3);
-    let sh_b = shingles("one two three four five six seven eight nine ten", 3);
+    let sh_a = shingle_hashes("alpha beta gamma delta epsilon zeta eta theta", 3);
+    let sh_b = shingle_hashes("one two three four five six seven eight nine ten", 3);
     let sig_a = mh.signature(&sh_a);
     let sig_b = mh.signature(&sh_b);
     let j = MinHasher::jaccard(&sig_a, &sig_b);
@@ -57,8 +54,8 @@ fn overlapping_texts_approximate_jaccard() {
     // Union: 6 + 2 + 2 = 10
     // True Jaccard = 6/10 = 0.6
     let mh = MinHasher::new(256);
-    let sh_a = shingles("a b c d e f g h i j", 3);
-    let sh_b = shingles("a b c d e f g h x y", 3);
+    let sh_a = shingle_hashes("a b c d e f g h i j", 3);
+    let sh_b = shingle_hashes("a b c d e f g h x y", 3);
     let sig_a = mh.signature(&sh_a);
     let sig_b = mh.signature(&sh_b);
     let j = MinHasher::jaccard(&sig_a, &sig_b);
@@ -72,7 +69,7 @@ fn overlapping_texts_approximate_jaccard() {
 #[test]
 fn signature_deterministic() {
     let mh = MinHasher::new(128);
-    let sh = shingles("deterministic test input words here now", 3);
+    let sh = shingle_hashes("deterministic test input words here now", 3);
     let sig1 = mh.signature(&sh);
     let sig2 = mh.signature(&sh);
     assert_eq!(sig1, sig2);

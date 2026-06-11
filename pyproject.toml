@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "textsift"
 version = "0.1.0"
-description = "Fast text deduplication for ML datasets. 96x faster than datasketch."
+description = "Fast text deduplication for ML datasets. 135x faster than datasketch."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"

@@ -18,8 +18,8 @@ textsift, rensa, and datasketch use word 5-grams. text-dedup uses character 5-gr
 
 | Tool | Time | Unique | Dupes | Speedup vs datasketch |
 |------|-----:|-------:|------:|----------------------:|
-| **textsift** | **0.39s** | 90,000 | 10,000 | **96x** |
-| rensa RMinHash | 0.92s | 90,000 | 10,000 | 41x |
+| **textsift** | **0.28s** | 90,000 | 10,000 | **135x** |
+| rensa RMinHash | 1.00s | 90,000 | 10,000 | 38x |
 | text-dedup | 8.15s | 80,621 | 19,379 | 4.6x |
 | datasketch | 37.75s | 90,000 | 10,000 | 1x |
 
@@ -27,8 +27,8 @@ textsift, rensa, and datasketch use word 5-grams. text-dedup uses character 5-gr
 
 | Tool | Time | Unique | Dupes | Speedup vs datasketch |
 |------|-----:|-------:|------:|----------------------:|
-| **textsift** | **4.59s** | 900,000 | 100,000 | **~88x** |
-| rensa RMinHash | 9.75s | 900,000 | 100,000 | ~42x |
+| **textsift** | **2.78s** | 900,000 | 100,000 | **~146x** |
+| rensa RMinHash | 9.82s | 900,000 | 100,000 | ~41x |
 | text-dedup | 50.96s | 806,144 | 193,856 | ~8x |
 | datasketch | ~405s | 900,000 | 100,000 | 1x |
 
@@ -36,8 +36,8 @@ textsift, rensa, and datasketch use word 5-grams. text-dedup uses character 5-gr
 
 | Dataset | textsift | rensa | textsift speedup |
 |---------|----------|-------|:----------------:|
-| 100K | 0.39s | 0.92s | **2.3x** |
-| 1M | 4.59s | 9.75s | **2.1x** |
+| 100K | 0.28s | 1.00s | **3.6x** |
+| 1M | 2.78s | 9.82s | **3.5x** |
 
 textsift is faster because it parallelizes MinHash signature computation with rayon (multi-core), while rensa processes documents sequentially in the Python event loop despite having a Rust core.
 
@@ -45,8 +45,8 @@ textsift is faster because it parallelizes MinHash signature computation with ra
 
 | Dataset | textsift | text-dedup | textsift speedup |
 |---------|----------|------------|:----------------:|
-| 100K | 0.39s | 8.15s | **21x** |
-| 1M | 4.59s | 50.96s | **11x** |
+| 100K | 0.28s | 8.15s | **29x** |
+| 1M | 2.78s | 50.96s | **18x** |
 
 text-dedup detects more duplicates because it uses character n-grams instead of word n-grams. Character 5-grams produce more shingle overlap between dissimilar texts, increasing false positives.
 

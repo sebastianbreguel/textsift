@@ -103,7 +103,7 @@ pub fn deduplicate(texts: &[String], config: &DedupConfig) -> DedupResult {
         let signatures: Vec<_> = unique_indices
             .par_iter()
             .map(|&i| {
-                let shingles = shingle::shingles(&texts[i], config.shingle_size);
+                let shingles = shingle::shingle_hashes(&texts[i], config.shingle_size);
                 hasher.signature(&shingles)
             })
             .collect();

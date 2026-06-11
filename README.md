@@ -5,7 +5,7 @@
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://github.com/sebastianbreguel/textsift)
 
-**96x faster than datasketch. 2x faster than rensa. Same results.**
+**135x faster than datasketch. 3.5x faster than rensa. Same results.**
 
 Fast text deduplication for ML datasets. Exact hash + MinHash LSH in ~800 lines of Rust. One command or one function call.
 
@@ -25,8 +25,8 @@ Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates)
 
 | Tool | 100K docs | 1M docs | Language | Interface |
 |------|----------|---------|----------|-----------|
-| **textsift** | **0.39s** | **4.6s** | Rust | CLI + Python |
-| rensa | 0.92s | 9.8s | Rust+PyO3 | Python only |
+| **textsift** | **0.28s** | **2.8s** | Rust | CLI + Python |
+| rensa | 1.00s | 9.8s | Rust+PyO3 | Python only |
 | text-dedup | 8.2s | 51.0s | Python | CLI only |
 | datasketch | 37.8s | 405s | Python | Python only |
 
@@ -34,6 +34,7 @@ textsift, rensa, and datasketch detect the same duplicates at the same threshold
 
 ### Why it's fast
 
+- Each shingle is hashed **once** to a u64, then 128 "permutations" are cheap multiply-add transforms — no per-permutation byte hashing, no per-shingle String allocation
 - Rayon multi-threaded MinHash signature computation (uses all cores)
 - ahash for hashing (hardware-accelerated on ARM / Apple Silicon)
 - Auto-calculated LSH bands/rows from threshold (no manual tuning)

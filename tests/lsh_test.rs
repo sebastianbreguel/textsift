@@ -1,7 +1,7 @@
 use textsift::cluster::UnionFind;
 use textsift::lsh::{optimal_params, LshIndex};
 use textsift::minhash::MinHasher;
-use textsift::shingle::shingles;
+use textsift::shingle::shingle_hashes as shingles;
 
 // ---------- optimal_params ----------
 
