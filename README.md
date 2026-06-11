@@ -5,7 +5,7 @@
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://github.com/sebastianbreguel/textsift)
 
-**135x faster than datasketch. 3.5x faster than rensa. Same results.**
+**135x faster than datasketch. 3.6x faster than rensa. Same results.** (100K docs; see [benchmarks](docs/benchmarks.md))
 
 Fast text deduplication for ML datasets. Exact hash + MinHash LSH in ~800 lines of Rust. One command or one function call.
 
@@ -25,8 +25,8 @@ Synthetic JSONL corpus (50 words/doc, 10% exact duplicates, 10% near-duplicates)
 
 | Tool | 100K docs | 1M docs | Language | Interface |
 |------|----------|---------|----------|-----------|
-| **textsift** | **0.28s** | **2.8s** | Rust | CLI + Python |
-| rensa | 1.00s | 9.8s | Rust+PyO3 | Python only |
+| **textsift** | **0.28s** | **2.78s** | Rust | CLI + Python |
+| rensa | 1.00s | 9.82s | Rust+PyO3 | Python only |
 | text-dedup | 8.2s | 51.0s | Python | CLI only |
 | datasketch | 37.8s | 405s | Python | Python only |
 
@@ -45,6 +45,7 @@ textsift, rensa, and datasketch detect the same duplicates at the same threshold
 - Docs missing the `--field` key are **passed through unchanged** (with a stderr warning), never silently dropped
 - Invalid JSON lines are skipped with a warning
 - Blank lines are skipped; line endings are normalized to `\n` (line *content* is byte-identical)
+- Empty or whitespace-only texts produce no shingles, so they near-dup-cluster together (use `--exact-only` if that matters)
 
 ## Install
 

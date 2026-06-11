@@ -96,4 +96,13 @@ mod tests {
         let hashes = vec![3u64, 7, 11];
         assert_eq!(mh.signature(&hashes), mh.signature(&hashes));
     }
+
+    #[test]
+    fn permutation_params_are_distinct() {
+        // Duplicate (a, b) pairs would make slots compute identical minima,
+        // silently degrading signature entropy. Guard the seed derivation.
+        let mh = MinHasher::new(512);
+        let unique: std::collections::HashSet<_> = mh.params.iter().collect();
+        assert_eq!(unique.len(), 512);
+    }
 }

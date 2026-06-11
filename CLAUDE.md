@@ -14,7 +14,7 @@ cargo build --release             # CLI binary at target/release/textsift
 ```
 
 Python wheel (local): `uvx maturin build --release --out dist -i $(uv python find 3.12)`
-— **pyo3 0.23 does not support Python 3.14**, always target 3.12 locally.
+(pyo3 is 0.28+, which supports modern Pythons; wheels are abi3 — one build covers 3.9+).
 
 ## Architecture (src/, ~1000 LOC)
 

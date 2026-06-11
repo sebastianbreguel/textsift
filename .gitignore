@@ -7,3 +7,4 @@ testdata/medium.jsonl
 testdata/100k.jsonl
 testdata/1m.jsonl
 launch/
+__pycache__/
