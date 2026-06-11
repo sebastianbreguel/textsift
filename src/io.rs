@@ -24,19 +24,22 @@ pub fn open_writer(path: Option<&Path>) -> Result<Box<dyn Write>> {
     }
 }
 
-pub fn read_jsonl(reader: impl BufRead) -> impl Iterator<Item = (usize, Result<Value>)> {
+/// Iterate non-blank input lines with 1-based line numbers, preserving the
+/// raw bytes so output can be byte-identical passthrough.
+pub fn read_lines(reader: impl BufRead) -> impl Iterator<Item = (usize, io::Result<String>)> {
     reader.lines().enumerate().filter_map(|(i, line)| {
         let line_num = i + 1;
         match line {
             Ok(l) if l.trim().is_empty() => None,
-            Ok(l) => {
-                let parsed = serde_json::from_str(&l)
-                    .with_context(|| format!("invalid JSON on line {line_num}"));
-                Some((line_num, parsed))
-            }
-            Err(e) => Some((line_num, Err(e.into()))),
+            other => Some((line_num, other)),
         }
     })
+}
+
+/// Write a raw line followed by a newline — no re-serialization.
+pub fn write_line(writer: &mut dyn Write, line: &str) -> Result<()> {
+    writeln!(writer, "{line}")?;
+    Ok(())
 }
 
 pub fn write_jsonl(writer: &mut dyn Write, value: &Value) -> Result<()> {

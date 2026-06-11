@@ -37,7 +37,12 @@ textsift, rensa, and datasketch detect the same duplicates at the same threshold
 - Rayon multi-threaded MinHash signature computation (uses all cores)
 - ahash for hashing (hardware-accelerated on ARM / Apple Silicon)
 - Auto-calculated LSH bands/rows from threshold (no manual tuning)
-- Zero-copy JSONL passthrough (preserves all original JSON fields)
+- Byte-identical JSONL passthrough — output lines are the original input lines, untouched (key order, spacing, everything)
+
+### Behavior notes
+
+- Docs missing the `--field` key are **passed through unchanged** (with a stderr warning), never silently dropped
+- Invalid JSON lines are skipped with a warning
 
 ## Install
 

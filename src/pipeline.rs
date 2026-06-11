@@ -174,52 +174,100 @@ pub fn run(args: &Cli) -> Result<()> {
     let reader = crate::io::open_reader(&args.input)?;
     let mut writer = crate::io::open_writer(args.output.as_deref())?;
 
-    let mut docs: Vec<Value> = Vec::new();
+    // Raw input lines, emitted untouched in default mode (byte-identical
+    // passthrough). `has_text[i]` marks lines that carry the dedup field;
+    // their extracted texts (in line order) feed `deduplicate`.
+    let mut lines: Vec<String> = Vec::new();
+    let mut has_text: Vec<bool> = Vec::new();
     let mut texts: Vec<String> = Vec::new();
+    let mut missing_field = 0usize;
 
-    for (line_num, result) in crate::io::read_jsonl(reader) {
-        match result {
-            Ok(value) => match crate::io::extract_field(&value, &args.field) {
-                Some(text) => {
-                    texts.push(text.to_owned());
-                    docs.push(value);
+    for (line_num, line_result) in crate::io::read_lines(reader) {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("warning: line {line_num}: {e}");
+                continue;
+            }
+        };
+        match serde_json::from_str::<Value>(&line) {
+            Ok(value) => {
+                match crate::io::extract_field(&value, &args.field) {
+                    Some(text) => {
+                        texts.push(text.to_owned());
+                        has_text.push(true);
+                    }
+                    None => {
+                        eprintln!(
+                            "warning: line {line_num} missing field '{}' — passed through",
+                            args.field
+                        );
+                        has_text.push(false);
+                        missing_field += 1;
+                    }
                 }
-                None => eprintln!("warning: line {line_num} missing field '{}'", args.field),
-            },
-            Err(e) => eprintln!("warning: {e}"),
+                lines.push(line);
+            }
+            Err(e) => eprintln!("warning: invalid JSON on line {line_num}: {e}"),
         }
     }
 
     let result = deduplicate(&texts, &config);
 
+    // Walk lines in input order; text_idx advances only over lines that
+    // participated in dedup. Lines without the field pass through as unique.
+    let mut text_idx = 0usize;
+
     if args.clusters {
-        for (i, mut doc) in docs.into_iter().enumerate() {
+        let mut next_cluster = result.unique_clusters;
+        for (i, line) in lines.iter().enumerate() {
+            let (cid, rep) = if has_text[i] {
+                let v = (
+                    result.cluster_ids[text_idx],
+                    result.is_representative[text_idx],
+                );
+                text_idx += 1;
+                v
+            } else {
+                let cid = next_cluster;
+                next_cluster += 1;
+                (cid, true)
+            };
+            // Re-parse only in clusters mode, where fields must be injected.
+            let mut doc: Value = serde_json::from_str(line)?;
             if let Some(obj) = doc.as_object_mut() {
-                obj.insert(
-                    "cluster_id".into(),
-                    Value::from(result.cluster_ids[i] as u64),
-                );
-                obj.insert(
-                    "is_representative".into(),
-                    Value::from(result.is_representative[i]),
-                );
+                obj.insert("cluster_id".into(), Value::from(cid as u64));
+                obj.insert("is_representative".into(), Value::from(rep));
             }
             crate::io::write_jsonl(&mut writer, &doc)?;
         }
     } else {
-        for (i, doc) in docs.iter().enumerate() {
-            if result.is_representative[i] {
-                crate::io::write_jsonl(&mut writer, doc)?;
+        for (i, line) in lines.iter().enumerate() {
+            let emit = if has_text[i] {
+                let r = result.is_representative[text_idx];
+                text_idx += 1;
+                r
+            } else {
+                true
+            };
+            if emit {
+                crate::io::write_line(&mut writer, line)?;
             }
         }
     }
 
     if args.stats {
-        eprintln!("total docs: {}", result.total);
+        eprintln!("total docs: {}", lines.len());
         eprintln!("exact duplicates: {}", result.exact_dupes);
         eprintln!("near duplicates: {}", result.near_dupes);
         eprintln!("unique clusters: {}", result.unique_clusters);
-        eprintln!("unique docs emitted: {}", result.unique_clusters);
+        if missing_field > 0 {
+            eprintln!("docs without field (passed through): {missing_field}");
+        }
+        eprintln!(
+            "unique docs emitted: {}",
+            result.unique_clusters + missing_field
+        );
     }
 
     Ok(())
