@@ -273,3 +273,32 @@ fn exact_only_streaming_parity() {
     assert!(stderr.contains("unique clusters: 2"));
     assert!(stderr.contains("unique docs emitted: 3"));
 }
+
+#[test]
+fn multi_field_near_dedup_clusters_similar_composites() {
+    // Multi-field without --exact-only shingles over the joined key:
+    // identical composites are exact dups; mostly-similar long composites
+    // cluster as near-dups. Pins current behavior.
+    let base: String = (0..40)
+        .map(|i| format!("w{i}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut near = base.clone();
+    near.push_str(" tail");
+    let input = format!(
+        "{{\"a\":\"{base}\",\"b\":\"same\"}}\n{{\"a\":\"{near}\",\"b\":\"same\"}}\n{{\"a\":\"totally different words entirely here\",\"b\":\"other\"}}\n"
+    );
+    let output = textsift()
+        .arg("-")
+        .args(["--field", "a", "--field", "b", "--threshold", "0.5"])
+        .write_stdin(input)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.trim().lines().count(),
+        2,
+        "near-dup composite collapsed, distinct one kept"
+    );
+}
